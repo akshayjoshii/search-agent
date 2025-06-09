@@ -220,7 +220,10 @@ const AiMessageBubble: React.FC<AiMessageBubbleProps> = ({
   );
 };
 
+import { useEffect } from "react"; // Added useEffect
+
 interface ChatMessagesViewProps {
+  chatId: string | null; // Added chatId prop
   messages: Message[];
   isLoading: boolean;
   scrollAreaRef: React.RefObject<HTMLDivElement | null>;
@@ -231,6 +234,7 @@ interface ChatMessagesViewProps {
 }
 
 export function ChatMessagesView({
+  chatId, // Added chatId
   messages,
   isLoading,
   scrollAreaRef,
@@ -240,6 +244,15 @@ export function ChatMessagesView({
   historicalActivities,
 }: ChatMessagesViewProps) {
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (chatId) {
+      console.log("ChatMessagesView: Switched to chat", chatId);
+      // TODO: Implement logic to fetch messages for this chatId if not using global `thread.messages`
+      // Or re-initialize LangGraph stream for this chatId.
+      // This might involve clearing existing messages if they belong to a different chat.
+    }
+  }, [chatId]);
 
   const handleCopy = async (text: string, messageId: string) => {
     try {

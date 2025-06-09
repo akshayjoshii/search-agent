@@ -13,6 +13,7 @@ import {
 
 // Updated InputFormProps
 interface InputFormProps {
+  chatId: string | null; // Added chatId prop
   onSubmit: (inputValue: string, effort: string, model: string) => void;
   onCancel: () => void;
   isLoading: boolean;
@@ -20,6 +21,7 @@ interface InputFormProps {
 }
 
 export const InputForm: React.FC<InputFormProps> = ({
+  chatId, // Added chatId
   onSubmit,
   onCancel,
   isLoading,
@@ -39,7 +41,20 @@ export const InputForm: React.FC<InputFormProps> = ({
       setShowLoginPopup(true); // Show the popup
       return; // Prevent form submission
     }
+
+    if (!chatId && user) { // If user is logged in but no chat is active (e.g. after login, before first chat)
+        // This scenario should ideally be handled by App.tsx creating a new chat first,
+        // or this InputForm should not be active/visible.
+        // As a fallback, we could try to trigger new chat creation here,
+        // but it's better managed by App.tsx.
+        console.warn("InputForm: No active chat selected. Submission might go to a default/new chat if App.tsx handles it.");
+        // For now, let App.tsx's onSubmit (which is the `handleSubmit` from App.tsx) handle this.
+        // That `handleSubmit` might create a new chat if none is active.
+    }
+
+    console.log(`InputForm: Submitting message for chat ${chatId || 'default/new'}. Value: ${internalInputValue}`);
     // If user is logged in, proceed with submission
+    // The onSubmit prop is expected to handle the logic for the specific chatId
     onSubmit(internalInputValue, effort, model);
     setInternalInputValue("");
   };
