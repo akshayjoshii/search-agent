@@ -39,6 +39,21 @@ class Configuration(BaseModel):
         metadata={"description": "The maximum number of research loops to perform."},
     )
 
+    google_client_id: str = Field(
+        default="",
+        metadata={"description": "The Google Client ID for OAuth."},
+    )
+
+    google_client_secret: str = Field(
+        default="",
+        metadata={"description": "The Google Client Secret for OAuth."},
+    )
+
+    session_secret_key: str = Field(
+        default="",
+        metadata={"description": "The secret key for signing session cookies."},
+    )
+
     @classmethod
     def from_runnable_config(
         cls, config: Optional[RunnableConfig] = None
