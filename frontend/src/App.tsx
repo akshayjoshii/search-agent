@@ -5,10 +5,8 @@ import { ProcessedEvent } from "@/components/ActivityTimeline";
 import { WelcomeScreen } from "@/components/WelcomeScreen";
 import { ChatMessagesView } from "@/components/ChatMessagesView";
 import { useAuth } from "./context/AuthContext";
-import ChatHistorySidebar from './components/ChatHistorySidebar'; // Added
-// import { Toaster } from "@/components/ui/toaster"; // REMOVED
-// import { useToast } from "@/components/ui/use-toast"; // REMOVED
-import * as apiClient from './lib/apiClient'; // Added
+import ChatHistorySidebar from './components/ChatHistorySidebar';
+import * as apiClient from './lib/apiClient';
 
 export default function App() {
   const { user, isLoading: isAuthLoading, login, logout } = useAuth();
@@ -41,30 +39,76 @@ export default function App() {
     configurable?: { thread_id: string | null }; // Added configurable to the state definition
   }>({
     apiUrl: import.meta.env.DEV
-      ? "http://localhost:2024"
-      : "http://localhost:8123",
+      ? "http://localhost:2024" // Keep dev URL for LangGraph API
+      : window.location.origin,   // Use current origin for production
     assistantId: "agent",
     messagesKey: "messages",
     onFinish: (event: any) => {
-      console.log('Finish event for stream, related to chat:', currentStreamChatId, event);
+      console.log('ON_FINISH_EVENT:', JSON.stringify(event, null, 2));
       // Potentially finalize activities for currentStreamChatId here
       // This ensures that historical activities are associated with the correct chat.
-      if (currentChatId === currentStreamChatId && hasFinalizeEventOccurredRef.current) {
-        const lastMessage = displayedMessages[displayedMessages.length - 1];
-        if (lastMessage && lastMessage.type === "ai" && lastMessage.id) {
-          setHistoricalActivities((prev) => ({
-            ...prev,
-            [lastMessage.id!]: [...processedEventsTimeline],
-          }));
+
+      if (currentChatId === currentStreamChatId && event?.messages) {
+        // Update if final event.messages has content, 
+        // OR if displayedMessages was empty (e.g. new chat that had no intermediate messages shown),
+        // OR if the content of event.messages is genuinely different from displayedMessages.
+        if (event.messages.length > 0 || displayedMessages.length === 0 ) {
+            if (JSON.stringify(event.messages) !== JSON.stringify(displayedMessages)) {
+                 console.log('onFinish: Syncing displayedMessages with final event.messages:', JSON.stringify(event.messages, null, 2));
+                 setDisplayedMessages(event.messages);
+            }
+        } else if (event.messages.length === 0 && displayedMessages.length > 0) {
+           // This case means the stream ended with no messages in its final state, but we showed some.
+           // We trust what was last shown by onUpdateEvent.
+           console.log('onFinish: Final event.messages is empty, but displayedMessages has content. Not clearing displayedMessages.');
         }
-        hasFinalizeEventOccurredRef.current = false;
+      }
+
+      if (currentChatId === currentStreamChatId && hasFinalizeEventOccurredRef.current) {
+        setTimeout(() => {
+          // Determine the most reliable source for final messages
+          const finalMessagesForHistory = event?.messages && event.messages.length > 0 
+            ? event.messages 
+            : (thread.messages && thread.messages.length > 0 ? thread.messages : displayedMessages);
+
+          const lastMessage = finalMessagesForHistory.length > 0 ? finalMessagesForHistory[finalMessagesForHistory.length - 1] : null;
+          
+          if (lastMessage && lastMessage.type === "ai" && lastMessage.id) {
+            console.log('onFinish: Setting historical activities for last AI message ID:', lastMessage.id, 'Timeline events count:', processedEventsTimeline.length);
+            setHistoricalActivities((prev) => ({
+              ...prev,
+              [lastMessage.id!]: [...processedEventsTimeline], 
+            }));
+          } else {
+            console.log('onFinish: No valid last AI message found in final messages to set historical activities.');
+            if (!lastMessage) console.log('Reason: finalMessagesForHistory was empty or last message was null.');
+            else if (lastMessage.type !== "ai") console.log('Reason: Last message was not of type "ai". Type was:', lastMessage.type);
+            else if (!lastMessage.id) console.log('Reason: Last AI message had no ID.');
+          }
+          hasFinalizeEventOccurredRef.current = false; 
+        }, 0); // End of setTimeout
+      } else {
+        // If the conditions aren't met (e.g. different chat, or finalize event didn't occur for this stream)
+        // still ensure the flag is reset if it was for this stream.
+        if (currentChatId === currentStreamChatId) {
+          hasFinalizeEventOccurredRef.current = false;
+        }
       }
     },
     onUpdateEvent: (event: any) => {
-      console.log('Received stream event for chat:', currentStreamChatId, event);
+      console.log('ON_UPDATE_EVENT:', JSON.stringify(event, null, 2));
       // Only update displayedMessages if the event is for the currently selected chat
-      if (event?.messages && currentChatId === currentStreamChatId) {
-        setDisplayedMessages(event.messages);
+      if (currentChatId === currentStreamChatId) {
+        if (event?.messages) {
+          // Only update displayedMessages if event.messages is not empty,
+          // OR if displayedMessages is currently empty (to allow initial empty state).
+          if (event.messages.length > 0 || displayedMessages.length === 0) {
+            console.log('onUpdateEvent: Setting displayedMessages with:', JSON.stringify(event.messages, null, 2));
+            setDisplayedMessages(event.messages);
+          } else {
+            console.log('onUpdateEvent: Skipped setDisplayedMessages because event.messages is empty and displayedMessages is not.');
+          }
+        }
       }
 
       // Process activity timeline
@@ -373,7 +417,7 @@ export default function App() {
             )}
           </div>
         </div>
-        <div className="flex-grow overflow-hidden">
+        <div className="flex-grow overflow-y-auto"> {/* MODIFIED HERE */}
           {!user ? ( // If not logged in, show a prompt to sign in
             <div className="flex flex-col items-center justify-center h-full">
                 <h2 className="text-2xl mb-4">Welcome!</h2>
@@ -421,29 +465,107 @@ export default function App() {
             // If logged in but no chat is selected (e.g., after login, or if currentChatId is null)
             <WelcomeScreen
               handleSubmit={async (inputValue, effort, model) => {
-                if (!currentChatId) { // If no chat is active, create one first
-                  // toast({ title: "Starting new chat...", description: "Please wait."}); // REMOVED
-                  console.log("Starting new chat... Please wait.");
-                  const newChatId = await handleCreateNewChat(); // Wait for new chat to be created
-                  if (newChatId) {
-                    // handleSubmit will be called with newChatId as currentChatId due to state update by handleCreateNewChat
-                    // and subsequent re-render. handleSubmit will pick up the latest currentChatId.
-                     handleSubmit(inputValue, effort, model);
+                let chatIdToUse = currentChatId; // currentChatId is from App.tsx's state, via closure
+
+                if (!chatIdToUse) {
+                  console.log("WelcomeScreen: No active chat, attempting to create one.");
+                  const newChatId = await handleCreateNewChat(); // newChatId is string | null
+                  if (newChatId) { // Check if newChatId is a valid string
+                    chatIdToUse = newChatId;
+                    console.log(`WelcomeScreen: New chat created: ${chatIdToUse}`);
+                    // Important: handleCreateNewChat already updates currentChatId state.
+                    // We use chatIdToUse locally to ensure this exact submission uses the new ID.
+                    // It also calls setCurrentStreamChatId(null) or similar.
+                    // We need to ensure the stream is correctly associated for *this* submission.
+                    if (currentStreamChatId !== chatIdToUse) {
+                      thread.stop?.(); // Stop any existing stream for a different chat
+                      setCurrentStreamChatId(chatIdToUse); // Associate stream with the new chat
+                      // For a new chat, messages should start fresh for the submission
+                      // setDisplayedMessages([]); // Will be set to [humanMessage] below
+                      setProcessedEventsTimeline([]); // Clear any timeline from a previous chat
+                    }
                   } else {
-                    // toast({ title: "Error", description: "Could not create a new chat. Please try again.", variant: "destructive"}); // REMOVED
-                    console.error("Error: Could not create a new chat. Please try again.");
+                    console.error("WelcomeScreen: Could not create a new chat. Please try again.");
+                    // Consider showing a user-facing error message here
+                    return; // Stop if chat creation failed
                   }
                 } else {
-                  // This case should ideally not happen if WelcomeScreen is only shown when no currentChatId,
-                  // but if it does, proceed with the currentChatId.
-                  handleSubmit(inputValue, effort, model);
+                  // If WelcomeScreen is somehow shown with an existing currentChatId, prepare for submission
+                  if (currentStreamChatId !== chatIdToUse) {
+                      thread.stop?.();
+                      setCurrentStreamChatId(chatIdToUse);
+                      // displayedMessages should already be loaded for this chatIdToUse if it's not new
+                      setProcessedEventsTimeline([]);
+                  } else {
+                      setProcessedEventsTimeline([]); // Clear timeline for new message in existing chat
+                  }
                 }
+
+                if (!inputValue.trim()) {
+                  console.warn("WelcomeScreen: Input value is empty. Not submitting.");
+                  return;
+                }
+                if (!chatIdToUse) {
+                  console.error("WelcomeScreen: No chat ID available for submission after attempting create. Aborting.");
+                  // Consider showing a user-facing error
+                  return;
+                }
+
+                console.log(`WelcomeScreen: Submitting for chat ID: ${chatIdToUse}`);
+                hasFinalizeEventOccurredRef.current = false;
+
+                let initial_search_query_count = 0;
+                let max_research_loops = 0;
+                switch (effort) {
+                  case "low":
+                    initial_search_query_count = 1;
+                    max_research_loops = 1;
+                    break;
+                  case "medium":
+                    initial_search_query_count = 3;
+                    max_research_loops = 3;
+                    break;
+                  case "high":
+                    initial_search_query_count = 5;
+                    max_research_loops = 10;
+                    break;
+                  default:
+                    console.warn(`WelcomeScreen: Unknown effort level: ${effort}. Defaulting to low.`);
+                    initial_search_query_count = 1;
+                    max_research_loops = 1;
+                }
+
+                const humanMessage: Message = {
+                  type: "human",
+                  content: inputValue,
+                  id: Date.now().toString(), // Generate a temporary ID for optimistic update
+                };
+
+                // For a new chat submission from WelcomeScreen, displayedMessages should start with this message.
+                // If for some reason WelcomeScreen was shown for an existing chat, this would overwrite,
+                // but WelcomeScreen is typically for the "no chat active" state.
+                setDisplayedMessages([humanMessage]);
+
+                thread.submit(
+                  { 
+                    messages: [humanMessage], // For a new chat, send only the new human message
+                    initial_search_query_count: initial_search_query_count,
+                    max_research_loops: max_research_loops,
+                    reasoning_model: model,
+                    // Ensure configurable.thread_id is part of the first argument object
+                    configurable: { thread_id: chatIdToUse },
+                  }
+                  // No second argument (options) if 'configurable' is in the first.
+                );
               }}
               isLoading={(thread.isLoading && currentChatId === currentStreamChatId) || isMessagesLoading} 
               onCancel={handleCancel}
             />
           )}
         </div>
+        <footer className="p-2 text-center text-xs text-neutral-500 border-t border-neutral-700">
+          Built with ❤️ by Akshay Joshi using LangChain & LangGraph.
+        </footer>
       </main>
       {/* <Toaster /> */} {/* REMOVED */}
     </div>

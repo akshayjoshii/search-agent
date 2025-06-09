@@ -7,7 +7,7 @@ class ChatHistoryBase(BaseModel):
     chat_name: Optional[str] = 'New Chat'
 
 class ChatHistoryCreate(ChatHistoryBase):
-    user_id: str # Ensure this matches how user ID is stored from auth
+    user_id: Optional[str] = None # Ensure this matches how user ID is stored from auth
 
 class ChatHistoryUpdate(BaseModel):
     chat_name: Optional[str] = None

@@ -33,8 +33,5 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
         hasHistory={false}
       />
     </div>
-    <p className="text-xs text-neutral-500">
-      Built with ❤️ by Akshay Joshi using LangChain & LangGraph.
-    </p>
   </div>
 );

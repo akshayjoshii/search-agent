@@ -19,6 +19,8 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+DROP TRIGGER IF EXISTS update_chat_history_updated_at ON chat_history;
+
 CREATE TRIGGER update_chat_history_updated_at
 BEFORE UPDATE ON chat_history
 FOR EACH ROW

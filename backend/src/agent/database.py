@@ -1,5 +1,5 @@
 import psycopg2
-from psycopg2.extras import RealDictCursor
+from psycopg2.extras import RealDictCursor, register_uuid # Modified import
 from typing import List, Optional
 from uuid import UUID, uuid4
 import uuid # Added for type hinting in get_messages_by_chat_id
@@ -10,11 +10,18 @@ import glob # Added for apply_migrations
 from src.agent.configuration import Configuration # To get POSTGRES_URI
 from src.agent.schemas import ChatHistory, Message as schemas_Message # Import the Pydantic model
 
+# Call register_uuid globally to enable UUID adaptation
+register_uuid()
+
 # TODO: Replace with a proper dependency injection mechanism if available
 config = Configuration.from_runnable_config()
 DATABASE_URL = config.postgres_uri
 
 def get_db_connection():
+    if not DATABASE_URL:
+        err_msg = "DATABASE_URL is not configured. Please check environment variables/configuration."
+        print(f"CRITICAL ERROR in get_db_connection: {err_msg}") # Log to console
+        raise ValueError(err_msg) # Raise an exception
     conn = psycopg2.connect(DATABASE_URL)
     return conn
 
