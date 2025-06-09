@@ -7,6 +7,7 @@ WORKDIR /app/frontend
 # Copy frontend package files and install dependencies
 COPY frontend/package.json ./
 COPY frontend/package-lock.json ./
+
 # If you use yarn or pnpm, adjust accordingly (e.g., copy yarn.lock or pnpm-lock.yaml and use yarn install or pnpm install)
 RUN npm install
 

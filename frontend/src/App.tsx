@@ -176,13 +176,15 @@ export default function App() {
     <div className="flex h-screen bg-neutral-800 text-neutral-100 font-sans antialiased">
       <main className="h-full w-full max-w-4xl mx-auto flex flex-col">
         <div className="p-4 border-b border-neutral-700 flex justify-between items-center">
-          <h1 className="text-xl font-semibold">Research Agent</h1>
+        <a href="https://search.akjo.eu">
+          <h1 className="text-xl font-semibold">Deep Research Agent</h1>
+        </a>
           <div>
             {isAuthLoading ? (
               <span>Loading...</span>
             ) : user ? (
               <div className="flex items-center gap-2">
-                <span className="text-sm">Welcome, {user.name || user.email}</span>
+                <span className="text-sm">{user.name || user.email}</span>
                 {user.picture && <img src={user.picture} alt="User" className="w-8 h-8 rounded-full" />}
                 <button
                   onClick={() => logout()}
