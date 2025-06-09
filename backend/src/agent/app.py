@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.staticfiles import StaticFiles
 import fastapi.exceptions
 from starlette.middleware.sessions import SessionMiddleware
-
+from fastapi.middleware.cors import CORSMiddleware
 
 from src.agent.configuration import Configuration
 from src.agent.auth import router as auth_router
@@ -18,7 +18,28 @@ config = Configuration.from_runnable_config()
 
 # Add SessionMiddleware
 # Note: https_only should ideally be True in production
-app.add_middleware(SessionMiddleware, secret_key=config.session_secret_key, https_only=False)
+app.add_middleware(SessionMiddleware, secret_key=config.session_secret_key, https_only=True)
+
+# 2. ADD THE CORS MIDDLEWARE BLOCK HERE
+# --------------------------------------------------------------------------
+# Define the list of allowed origins (your frontend URL)
+origins = [
+    "https://search.akjo.eu",
+    "https://search.akjo.eu/app/",
+    # You can also add localhost for local development if needed
+    "http://localhost:8123",
+    "http://localhost:8123/app/",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+# --------------------------------------------------------------------------
+
 
 # Mount the auth router
 app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
