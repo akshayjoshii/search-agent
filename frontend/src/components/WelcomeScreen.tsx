@@ -26,6 +26,7 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
     </div>
     <div className="w-full mt-4">
       <InputForm
+        chatId={null} // Pass null for chatId
         onSubmit={handleSubmit}
         isLoading={isLoading}
         onCancel={onCancel}

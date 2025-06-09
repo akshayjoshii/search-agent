@@ -324,6 +324,7 @@ export function ChatMessagesView({
         </div>
       </ScrollArea>
       <InputForm
+        chatId={chatId} // Pass the chatId prop
         onSubmit={onSubmit}
         isLoading={isLoading}
         onCancel={onCancel}

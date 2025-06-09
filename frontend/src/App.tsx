@@ -6,16 +6,16 @@ import { WelcomeScreen } from "@/components/WelcomeScreen";
 import { ChatMessagesView } from "@/components/ChatMessagesView";
 import { useAuth } from "./context/AuthContext";
 import ChatHistorySidebar from './components/ChatHistorySidebar'; // Added
-import { Toaster } from "@/components/ui/toaster"; // Added
-import { useToast } from "@/components/ui/use-toast"; // Added
+// import { Toaster } from "@/components/ui/toaster"; // REMOVED
+// import { useToast } from "@/components/ui/use-toast"; // REMOVED
 import * as apiClient from './lib/apiClient'; // Added
 
 export default function App() {
   const { user, isLoading: isAuthLoading, login, logout } = useAuth();
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
-  const { toast } = useToast();
-  const [displayedMessages, setDisplayedMessages] = useState<Message[]>([]);
-  const [currentStreamChatId, setCurrentStreamChatId] = useState<string | null>(null);
+  // const { toast } = useToast(); // REMOVED
+  const [displayedMessages, setDisplayedMessages] = useState<Message[]>([]); 
+  const [currentStreamChatId, setCurrentStreamChatId] = useState<string | null>(null); 
   const [isMessagesLoading, setIsMessagesLoading] = useState(false); // Added state for loading history
 
   const [processedEventsTimeline, setProcessedEventsTimeline] = useState<
@@ -38,6 +38,7 @@ export default function App() {
     initial_search_query_count: number;
     max_research_loops: number;
     reasoning_model: string;
+    configurable?: { thread_id: string | null }; // Added configurable to the state definition
   }>({
     apiUrl: import.meta.env.DEV
       ? "http://localhost:2024"
@@ -130,35 +131,37 @@ export default function App() {
   });
 
   const handleSelectChat = async (newChatId: string | null) => { // Renamed chatId to newChatId for clarity
-    if (currentChatId === newChatId) return;
+    if (currentChatId === newChatId) return; 
 
     // Stop existing stream and clear messages for the old chat
     // thread.stop?.(); // This might be too aggressive if user quickly clicks back
-    if (thread.isRunning) { // More explicit check
+    if (thread.isLoading) { // More explicit check
         thread.stop();
     }
-    setDisplayedMessages([]);
-    setProcessedEventsTimeline([]);
-    setCurrentStreamChatId(null);
+    setDisplayedMessages([]); 
+    setProcessedEventsTimeline([]); 
+    setCurrentStreamChatId(null); 
 
     if (!newChatId) {
         setCurrentChatId(null);
-        toast({ title: "Chat Cleared", description: "No chat selected." });
+        // toast({ title: "Chat Cleared", description: "No chat selected." }); // REMOVED
+        console.log("Chat Cleared: No chat selected.");
         return;
     }
 
     setCurrentChatId(newChatId);
     setIsMessagesLoading(true);
-    toast({ title: "Loading Chat", description: `Fetching messages for chat...` });
+    // toast({ title: "Loading Chat", description: `Fetching messages for chat...` }); // REMOVED
+    console.log("Loading Chat: Fetching messages for chat...");
 
     try {
       const history = await apiClient.fetchChatMessages(newChatId);
       const transformedMessages = history.messages.map((msg): Message => {
-        let role: "user" | "assistant" | "tool" | "system" = "system";
+        let role: "user" | "assistant" | "tool" | "system" = "system"; 
         if (msg.type === 'human') role = 'user';
         else if (msg.type === 'ai') role = 'assistant';
         else if (msg.type === 'tool') role = 'tool';
-
+        
         // The Message type from @langchain/langgraph-sdk expects 'content' not 'text'
         // Ensure your frontend Message type matches what ChatMessagesView expects
         // If ChatMessagesView expects `text`, adapt here. If it expects `content`, this is fine.
@@ -176,12 +179,14 @@ export default function App() {
         } as Message; // Cast to SDK Message type
       });
       setDisplayedMessages(transformedMessages);
-      toast({ title: "Chat history loaded." });
+      // toast({ title: "Chat history loaded." }); // REMOVED
+      console.log("Chat history loaded.");
     } catch (error) {
       console.error("Failed to fetch chat messages:", error);
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      toast({ title: "Error", description: `Failed to load chat history: ${errorMessage}`, variant: "destructive" });
-      setDisplayedMessages([]);
+      // toast({ title: "Error", description: `Failed to load chat history: ${errorMessage}`, variant: "destructive" }); // REMOVED
+      console.error(`Failed to load chat history: ${errorMessage}`);
+      setDisplayedMessages([]); 
     } finally {
       setIsMessagesLoading(false);
     }
@@ -189,27 +194,30 @@ export default function App() {
 
   const handleCreateNewChat = async () => {
     if (!user) {
-        toast({ title: "Authentication Error", description: "You must be logged in to create a chat.", variant: "destructive" });
-        return null;
+        // toast({ title: "Authentication Error", description: "You must be logged in to create a chat.", variant: "destructive" }); // REMOVED
+        console.error("Authentication Error: You must be logged in to create a chat.");
+        return null; 
     }
     try {
       const newChat = await apiClient.createChat({ chat_name: "New Chat" });
       if (newChat) {
-        thread.stop?.();
+        thread.stop?.(); 
         setCurrentChatId(newChat.chat_id);
-        setDisplayedMessages([]);
-        setProcessedEventsTimeline([]);
+        setDisplayedMessages([]); 
+        setProcessedEventsTimeline([]); 
         // setCurrentStreamChatId(newChat.chat_id); // Associate stream with this new chat immediately
         setCurrentStreamChatId(null); // Or wait for first message submission
-        toast({ title: "Chat created", description: `Switched to new chat: ${newChat.chat_name}` });
-        return newChat.chat_id;
+        // toast({ title: "Chat created", description: `Switched to new chat: ${newChat.chat_name}` }); // REMOVED
+        console.log(`Chat created: Switched to new chat: ${newChat.chat_name}`);
+        return newChat.chat_id; 
       }
     } catch (error) {
         console.error("Failed to create new chat:", error);
         const errorMessage = error instanceof Error ? error.message : "Unknown error";
-        toast({ title: "Error", description: `Failed to create chat: ${errorMessage}`, variant: "destructive" });
+        // toast({ title: "Error", description: `Failed to create chat: ${errorMessage}`, variant: "destructive" }); // REMOVED
+        console.error(`Failed to create chat: ${errorMessage}`);
     }
-    return null;
+    return null; 
   };
 
   // Effect to update displayed messages from stream IF it's for the current chat
@@ -240,13 +248,13 @@ export default function App() {
     if (
       hasFinalizeEventOccurredRef.current &&
       !thread.isLoading && //isLoading is still from the global thread object
-      displayedMessages.length > 0 &&
-      currentChatId === currentStreamChatId
+      displayedMessages.length > 0 && 
+      currentChatId === currentStreamChatId 
     ) {
       const lastMessage = displayedMessages[displayedMessages.length - 1];
       if (lastMessage && lastMessage.type === "ai" && lastMessage.id) {
         // Consider if processedEventsTimeline also needs to be explicitly cleared/managed per chat
-        setHistoricalActivities((prev) => ({
+        setHistoricalActivities((prev) => ({ 
           ...prev,
           [lastMessage.id!]: [...processedEventsTimeline],
         }));
@@ -260,20 +268,21 @@ export default function App() {
     (submittedInputValue: string, effort: string, model: string) => {
       if (!submittedInputValue.trim() || !currentChatId) {
         if (!currentChatId) {
-            toast({ title: "No Chat Selected", description: "Please select or create a chat to send a message.", variant: "destructive"});
+            // toast({ title: "No Chat Selected", description: "Please select or create a chat to send a message.", variant: "destructive"}); // REMOVED
+            console.error("No Chat Selected: Please select or create a chat to send a message.");
         }
         return;
       }
 
       // If the stream is not for the current chat, or if it's the first message for this chat
       if (currentStreamChatId !== currentChatId) {
-        thread.stop?.();
+        thread.stop?.(); 
         setCurrentStreamChatId(currentChatId); // Associate stream with the current chat
         // setDisplayedMessages([]); // Clear messages from old stream, or rely on history load
-        setProcessedEventsTimeline([]);
+        setProcessedEventsTimeline([]); 
       }
-
-      setProcessedEventsTimeline([]);
+      
+      setProcessedEventsTimeline([]); 
       hasFinalizeEventOccurredRef.current = false;
 
       let initial_search_query_count = 0;
@@ -306,15 +315,18 @@ export default function App() {
       // Current approach: send current displayed messages + new human message.
       // This assumes `useStream` messages are not automatically persisted and reloaded by `configurable.thread_id` alone.
       // If they are, then `messages: [humanMessage]` might be enough after history is loaded.
-      thread.submit({
-        messages: [...displayedMessages, humanMessage],
-        initial_search_query_count: initial_search_query_count,
-        max_research_loops: max_research_loops,
-        reasoning_model: model,
-        configurable: { thread_id: currentChatId },
-      });
+      thread.submit(
+        { // First argument: input
+          messages: [...displayedMessages, humanMessage], 
+          initial_search_query_count: initial_search_query_count,
+          max_research_loops: max_research_loops,
+          reasoning_model: model,
+          configurable: { thread_id: currentChatId }, // configurable is part of the input object
+        }
+        // No second argument is needed if all options are part of the input.
+      );
     },
-    [thread, currentChatId, displayedMessages, currentStreamChatId, toast]
+    [thread, currentChatId, displayedMessages, currentStreamChatId]
   );
 
   const handleCancel = useCallback(() => {
@@ -395,11 +407,11 @@ export default function App() {
                 />
               ) : (
                 <ChatMessagesView
-                  chatId={currentChatId}
-                  messages={displayedMessages}
+                  chatId={currentChatId} 
+                  messages={displayedMessages} 
                   isLoading={(thread.isLoading && currentChatId === currentStreamChatId) || isMessagesLoading} // Combined loading state
                   scrollAreaRef={scrollAreaRef}
-                  onSubmit={handleSubmit}
+                  onSubmit={handleSubmit} 
                   onCancel={handleCancel}
                   liveActivityEvents={processedEventsTimeline} // This might need to be chat-specific
                   historicalActivities={historicalActivities} // This is already somewhat chat-specific by message ID
@@ -410,14 +422,16 @@ export default function App() {
             <WelcomeScreen
               handleSubmit={async (inputValue, effort, model) => {
                 if (!currentChatId) { // If no chat is active, create one first
-                  toast({ title: "Starting new chat...", description: "Please wait."});
+                  // toast({ title: "Starting new chat...", description: "Please wait."}); // REMOVED
+                  console.log("Starting new chat... Please wait.");
                   const newChatId = await handleCreateNewChat(); // Wait for new chat to be created
                   if (newChatId) {
                     // handleSubmit will be called with newChatId as currentChatId due to state update by handleCreateNewChat
                     // and subsequent re-render. handleSubmit will pick up the latest currentChatId.
                      handleSubmit(inputValue, effort, model);
                   } else {
-                    toast({ title: "Error", description: "Could not create a new chat. Please try again.", variant: "destructive"});
+                    // toast({ title: "Error", description: "Could not create a new chat. Please try again.", variant: "destructive"}); // REMOVED
+                    console.error("Error: Could not create a new chat. Please try again.");
                   }
                 } else {
                   // This case should ideally not happen if WelcomeScreen is only shown when no currentChatId,
@@ -425,13 +439,13 @@ export default function App() {
                   handleSubmit(inputValue, effort, model);
                 }
               }}
-              isLoading={(thread.isLoading && currentChatId === currentStreamChatId) || isMessagesLoading}
+              isLoading={(thread.isLoading && currentChatId === currentStreamChatId) || isMessagesLoading} 
               onCancel={handleCancel}
             />
           )}
         </div>
       </main>
-      <Toaster />
+      {/* <Toaster /> */} {/* REMOVED */}
     </div>
   );
 }

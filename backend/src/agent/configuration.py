@@ -54,6 +54,13 @@ class Configuration(BaseModel):
         metadata={"description": "The secret key for signing session cookies."},
     )
 
+    postgres_uri: str = Field(
+        default="",
+        metadata={
+            "description": "The URI for connecting to the PostgreSQL database."
+        },
+    )
+
     @classmethod
     def from_runnable_config(
         cls, config: Optional[RunnableConfig] = None
