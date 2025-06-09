@@ -3,9 +3,25 @@ import pathlib
 from fastapi import FastAPI, Request, Response
 from fastapi.staticfiles import StaticFiles
 import fastapi.exceptions
+from starlette.middleware.sessions import SessionMiddleware
+
+
+from src.agent.configuration import Configuration
+from src.agent.auth import router as auth_router
 
 # Define the FastAPI app
 app = FastAPI()
+
+# Load configuration to get session secret key
+# TODO: Replace with a proper dependency injection mechanism if available
+config = Configuration.from_runnable_config()
+
+# Add SessionMiddleware
+# Note: https_only should ideally be True in production
+app.add_middleware(SessionMiddleware, secret_key=config.session_secret_key, https_only=False)
+
+# Mount the auth router
+app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
 
 
 def create_frontend_router(build_dir="../frontend/dist"):

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { SquarePen, Brain, Send, StopCircle, Zap, Cpu } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -24,13 +25,21 @@ export const InputForm: React.FC<InputFormProps> = ({
   isLoading,
   hasHistory,
 }) => {
+  const { user, isLoading: isAuthLoading, login } = useAuth();
   const [internalInputValue, setInternalInputValue] = useState("");
-  const [effort, setEffort] = useState("medium");
+  const [showLoginPopup, setShowLoginPopup] = useState(false); // Added state for popup visibility
+  const [effort, setEffort] = useState("low");
   const [model, setModel] = useState("gemini-2.5-flash-preview-04-17");
 
   const handleInternalSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!internalInputValue.trim()) return;
+
+    if (!user) { // Check if user is not logged in
+      setShowLoginPopup(true); // Show the popup
+      return; // Prevent form submission
+    }
+    // If user is logged in, proceed with submission
     onSubmit(internalInputValue, effort, model);
     setInternalInputValue("");
   };
@@ -44,7 +53,7 @@ export const InputForm: React.FC<InputFormProps> = ({
     }
   };
 
-  const isSubmitDisabled = !internalInputValue.trim() || isLoading;
+  const isSubmitDisabled = !internalInputValue.trim() || isLoading || isAuthLoading;
 
   return (
     <form
@@ -59,6 +68,7 @@ export const InputForm: React.FC<InputFormProps> = ({
         <Textarea
           value={internalInputValue}
           onChange={(e) => setInternalInputValue(e.target.value)}
+          disabled={isAuthLoading || isLoading} // Removed !user
           onKeyDown={handleInternalKeyDown}
           placeholder="Who won the IPL 2025 and after how many years did they win?"
           className={`w-full text-neutral-100 placeholder-neutral-500 resize-none border-0 focus:outline-none focus:ring-0 outline-none focus-visible:ring-0 shadow-none 
@@ -93,6 +103,9 @@ export const InputForm: React.FC<InputFormProps> = ({
           )}
         </div>
       </div>
+      {isAuthLoading && (
+        <p className="text-sm text-neutral-400 px-1">Verifying authentication...</p>
+      )}
       <div className="flex items-center justify-between">
         <div className="flex flex-row gap-2">
           <div className="flex flex-row gap-2 bg-neutral-700 border-neutral-600 text-neutral-300 focus:ring-neutral-500 rounded-xl rounded-t-sm pl-2  max-w-[100%] sm:max-w-[90%]">
@@ -175,6 +188,29 @@ export const InputForm: React.FC<InputFormProps> = ({
           </Button>
         )}
       </div>
+      {showLoginPopup && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-neutral-700 p-6 rounded-lg shadow-xl text-center">
+            <p className="text-lg text-neutral-100 mb-4">Please log in to start a new search.</p>
+            <Button
+              onClick={() => {
+                login();
+                setShowLoginPopup(false); // Close popup after attempting login
+              }}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded flex items-center justify-center mx-auto"
+            >
+              <Send className="h-4 w-4 mr-2" /> Login with Google
+            </Button>
+            <Button
+              onClick={() => setShowLoginPopup(false)}
+              variant="ghost"
+              className="mt-2 text-neutral-400 hover:text-neutral-300"
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
     </form>
   );
 };

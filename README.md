@@ -34,6 +34,49 @@ Follow these steps to get the application running locally for development and te
     2.  Create a file named `.env` by copying the `backend/.env.example` file.
     3.  Open the `.env` file and add your Gemini API key: `GEMINI_API_KEY="YOUR_ACTUAL_API_KEY"`
 
+**### Google OAuth 2.0 Setup (Optional - for User Authentication)**
+
+If you want to enable user authentication via Google OAuth, you need to configure Google OAuth credentials:
+
+1.  **Set up Google OAuth Credentials:**
+    *   Go to the [Google Cloud Console](https://console.cloud.google.com/).
+    *   Create a new project or select an existing one.
+    *   Navigate to "APIs & Services" > "Credentials".
+    *   Click "Create Credentials" > "OAuth client ID".
+    *   **Configure the OAuth consent screen** if you haven't already:
+        *   Choose User Type (e.g., "External" for public access, "Internal" for users within your Google Workspace organization).
+        *   Provide an App name (e.g., "Research Agent").
+        *   Enter your User support email.
+        *   Add Developer contact information.
+        *   Click "Save and Continue".
+    *   **Scopes:** On the Scopes page, click "Add or Remove Scopes". Select `openid`, `email`, and `profile`. Click "Update", then "Save and Continue".
+    *   **Test Users (for External type):** Add your Google account email(s) as test users while your app is in "testing" status. Click "Save and Continue".
+    *   Return to the "Credentials" page. Click "Create Credentials" > "OAuth client ID" again.
+    *   For **Application type**, select "Web application".
+    *   Give it a name (e.g., "Research Agent Web Client").
+    *   Under **"Authorized JavaScript origins"**, add your frontend development URL. For the Vite dev server, this is typically `http://localhost:5173`. For production, add your production frontend URL.
+    *   Under **"Authorized redirect URIs"**, add your backend callback URL. For local development, this will be `http://localhost:8000/auth/google/callback` (assuming the backend runs on port 8000 as per default FastAPI, adjust if you run it on a different port like 2024 for `langgraph dev`). For production, add your production backend callback URL (e.g., `https://yourdomain.com/auth/google/callback`).
+    *   Click "Create".
+    *   Copy the **"Client ID"** and **"Client secret"**.
+
+2.  **Configure Environment Variables:**
+    *   In the `backend/.env` file you created for the `GEMINI_API_KEY`, add the following lines, replacing the placeholders with your actual credentials:
+        ```
+        GOOGLE_CLIENT_ID="YOUR_GOOGLE_CLIENT_ID_HERE"
+        GOOGLE_CLIENT_SECRET="YOUR_GOOGLE_CLIENT_SECRET_HERE"
+        ```
+    *   You also need to set a `SESSION_SECRET_KEY` for securing user sessions. Generate a strong random key by running the following command in your terminal:
+        ```bash
+        python -c "import os; print(os.urandom(24).hex())"
+        ```
+    *   Copy the generated key and add it to your `backend/.env` file:
+        ```
+        SESSION_SECRET_KEY="YOUR_GENERATED_SESSION_SECRET_KEY_HERE"
+        ```
+
+3.  **Restart Backend Server:**
+    *   If your backend server was running, restart it to load the new environment variables.
+
 **2. Install Dependencies:**
 
 **Backend:**

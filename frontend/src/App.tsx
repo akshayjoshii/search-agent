@@ -4,8 +4,10 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { ProcessedEvent } from "@/components/ActivityTimeline";
 import { WelcomeScreen } from "@/components/WelcomeScreen";
 import { ChatMessagesView } from "@/components/ChatMessagesView";
+import { useAuth } from "./context/AuthContext";
 
 export default function App() {
+  const { user, isLoading: isAuthLoading, login, logout } = useAuth();
   const [processedEventsTimeline, setProcessedEventsTimeline] = useState<
     ProcessedEvent[]
   >([]);
@@ -172,7 +174,36 @@ export default function App() {
 
   return (
     <div className="flex h-screen bg-neutral-800 text-neutral-100 font-sans antialiased">
-      <main className="h-full w-full max-w-4xl mx-auto">
+      <main className="h-full w-full max-w-4xl mx-auto flex flex-col">
+        <div className="p-4 border-b border-neutral-700 flex justify-between items-center">
+        <a href="https://search.akjo.eu">
+          <h1 className="text-xl font-semibold">Deep Research Agent</h1>
+        </a>
+          <div>
+            {isAuthLoading ? (
+              <span>Loading...</span>
+            ) : user ? (
+              <div className="flex items-center gap-2">
+                <span className="text-sm">{user.name || user.email}</span>
+                {user.picture && <img src={user.picture} alt="User" className="w-8 h-8 rounded-full" />}
+                <button
+                  onClick={() => logout()}
+                  className="px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-white text-sm"
+                >
+                  Logout
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => login()}
+                className="px-3 py-1 bg-blue-600 hover:bg-blue-700 rounded text-white text-sm"
+              >
+                Sign in with Google
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="flex-grow overflow-hidden"> {/* Added flex-grow and overflow-hidden for chat area */}
           {thread.messages.length === 0 ? (
             <WelcomeScreen
               handleSubmit={handleSubmit}
@@ -190,6 +221,7 @@ export default function App() {
               historicalActivities={historicalActivities}
             />
           )}
+        </div>
       </main>
     </div>
   );
