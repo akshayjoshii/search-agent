@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { SquarePen, Brain, Send, StopCircle, Zap, Cpu } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
@@ -24,6 +25,7 @@ export const InputForm: React.FC<InputFormProps> = ({
   isLoading,
   hasHistory,
 }) => {
+  const { user, isLoading: isAuthLoading, login } = useAuth();
   const [internalInputValue, setInternalInputValue] = useState("");
   const [effort, setEffort] = useState("medium");
   const [model, setModel] = useState("gemini-2.5-flash-preview-04-17");
@@ -44,7 +46,7 @@ export const InputForm: React.FC<InputFormProps> = ({
     }
   };
 
-  const isSubmitDisabled = !internalInputValue.trim() || isLoading;
+  const isSubmitDisabled = !internalInputValue.trim() || isLoading || isAuthLoading || !user;
 
   return (
     <form
@@ -59,6 +61,7 @@ export const InputForm: React.FC<InputFormProps> = ({
         <Textarea
           value={internalInputValue}
           onChange={(e) => setInternalInputValue(e.target.value)}
+          disabled={isAuthLoading || !user || isLoading}
           onKeyDown={handleInternalKeyDown}
           placeholder="Who won the IPL 2025 and after how many years did they win?"
           className={`w-full text-neutral-100 placeholder-neutral-500 resize-none border-0 focus:outline-none focus:ring-0 outline-none focus-visible:ring-0 shadow-none 
@@ -93,6 +96,21 @@ export const InputForm: React.FC<InputFormProps> = ({
           )}
         </div>
       </div>
+      {isAuthLoading && (
+        <p className="text-sm text-neutral-400 px-1">Verifying authentication...</p>
+      )}
+      {!isAuthLoading && !user && (
+        <div className="flex flex-col items-center gap-2 my-2 px-1">
+          <p className="text-sm text-neutral-400">Please log in to start a new search.</p>
+          <Button
+            onClick={() => login()}
+            variant="secondary" // Or any other appropriate variant
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            <Send className="h-4 w-4 mr-2" /> Login with Google
+          </Button>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div className="flex flex-row gap-2">
           <div className="flex flex-row gap-2 bg-neutral-700 border-neutral-600 text-neutral-300 focus:ring-neutral-500 rounded-xl rounded-t-sm pl-2  max-w-[100%] sm:max-w-[90%]">

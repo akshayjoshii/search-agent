@@ -11,7 +11,7 @@ export interface AuthUser {
 export interface AuthContextType {
   user: AuthUser | null;
   isLoading: boolean;
-  login: () as void;
+  login: () => void;
   logout: () => Promise<void>;
   checkAuthStatus: () => Promise<void>;
 }
