@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, FC } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, FC } from 'react';
 
 // Define interfaces
 export interface AuthUser {

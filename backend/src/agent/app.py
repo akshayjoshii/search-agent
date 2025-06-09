@@ -5,8 +5,9 @@ from fastapi.staticfiles import StaticFiles
 import fastapi.exceptions
 from starlette.middleware.sessions import SessionMiddleware
 
-from backend.src.agent.configuration import Configuration
-from backend.src.agent.auth import router as auth_router
+
+from src.agent.configuration import Configuration
+from src.agent.auth import router as auth_router
 
 # Define the FastAPI app
 app = FastAPI()

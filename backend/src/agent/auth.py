@@ -4,7 +4,7 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse, JSONResponse
 from fastapi import APIRouter, Depends
 
-from backend.src.agent.configuration import Configuration
+from src.agent.configuration import Configuration
 
 # Load configuration (assuming it handles environment variables)
 # TODO: Replace with a proper dependency injection mechanism if available
@@ -38,7 +38,7 @@ async def auth_callback(request: Request):
     userinfo = token.get('userinfo')
     if userinfo:
         request.session['user'] = dict(userinfo)
-    return RedirectResponse(url='/app') # Or your desired frontend path
+    return RedirectResponse(url='/app/') # Or your desired frontend path
 
 # Define a /logout route
 @router.get('/logout')

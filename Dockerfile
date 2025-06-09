@@ -40,12 +40,19 @@ ADD backend/ /deps/backend
 # -- Installing all local dependencies using UV --
 # First, we need to ensure pip is available for UV to use
 RUN uv pip install --system pip setuptools wheel
+
 # Install dependencies with UV, respecting constraints
 RUN cd /deps/backend && \
     PYTHONDONTWRITEBYTECODE=1 UV_SYSTEM_PYTHON=1 uv pip install --system -c /api/constraints.txt -e .
 # -- End of local dependencies install --
+
 ENV LANGGRAPH_HTTP='{"app": "/deps/backend/src/agent/app.py:app"}'
 ENV LANGSERVE_GRAPHS='{"agent": "/deps/backend/src/agent/graph.py:graph"}'
+
+# -- Set some more environment variables from backend/.env --
+COPY backend/.env /deps/backend/.env
+ENV $(cat /deps/backend/.env | xargs)
+# -- End of setting environment variables --
 
 # -- Ensure user deps didn't inadvertently overwrite langgraph-api
 # Create all required directories that the langgraph-api package expects

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { ProcessedEvent } from "@/components/ActivityTimeline";
 import { WelcomeScreen } from "@/components/WelcomeScreen";
 import { ChatMessagesView } from "@/components/ChatMessagesView";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "./context/AuthContext";
 
 export default function App() {
   const { user, isLoading: isAuthLoading, login, logout } = useAuth();

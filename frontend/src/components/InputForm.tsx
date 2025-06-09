@@ -27,7 +27,7 @@ export const InputForm: React.FC<InputFormProps> = ({
 }) => {
   const { user, isLoading: isAuthLoading, login } = useAuth();
   const [internalInputValue, setInternalInputValue] = useState("");
-  const [effort, setEffort] = useState("medium");
+  const [effort, setEffort] = useState("low");
   const [model, setModel] = useState("gemini-2.5-flash-preview-04-17");
 
   const handleInternalSubmit = (e?: React.FormEvent) => {
