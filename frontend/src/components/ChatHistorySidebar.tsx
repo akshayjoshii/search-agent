@@ -1,5 +1,5 @@
-// frontend/src/components/ChatHistorySidebar.tsx
-import React, { useState, useEffect, useCallback } from 'react';
+
+import React from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { MoreVertical } from 'lucide-react';
@@ -9,88 +9,45 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import * as apiClient from '../lib/apiClient';
-// You might need icons for actions like delete, rename
-// import { Trash2, Edit3, PlusCircle } from 'lucide-react';
+// import * as apiClient from '../lib/apiClient';
 
-// Define the structure of a chat item based on backend schema
-interface Chat {
-  chat_id: string; // UUID is a string in TS
+// --- MODIFIED: This interface can be shared or defined in a types file ---
+export interface Chat {
+  chat_id: string;
   chat_name: string;
-  // Add other relevant fields if needed, e.g., created_at, updated_at
 }
 
+// --- MODIFIED: The props are updated to receive state from the parent ---
 interface ChatHistorySidebarProps {
+  chats: Chat[];
+  isLoading: boolean;
+  error: string | null;
   currentChatId: string | null;
   onSelectChat: (chatId: string) => void;
-  onCreateNewChat: () => void; // Callback to signal App.tsx to handle new chat creation
-  onChatDeleted: (deletedChatId: string) => void; // Callback when a chat is deleted
-  // onRenameChat: (chatId: string, newName: string) => void; // Future enhancement
+  onCreateNewChat: () => void;
+  onChatDeleted: (deletedChatId: string) => void;
+  onRenameChat: (chatId: string, newName: string) => void;
 }
 
 const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
+  chats,
+  isLoading,
+  error,
   currentChatId,
   onSelectChat,
   onCreateNewChat,
   onChatDeleted,
+  onRenameChat,
 }) => {
-  const [chats, setChats] = useState<Chat[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // --- REMOVED: All internal state management (useState, useEffect, fetchChats) is gone. ---
 
-  const fetchChats = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await fetch('/api/chats/'); // Ensure this matches your backend route
-      if (!response.ok) {
-        if (response.status === 401) {
-          // Handle unauthorized access, e.g., redirect to login or show message
-          setError('Unauthorized. Please log in.');
-          // Potentially call a logout function from AuthContext here
-          return;
-        }
-        throw new Error(`Failed to fetch chats: ${response.statusText}`);
-      }
-      const data = await response.json();
-      setChats(data.chats || []); // Assuming the backend returns { chats: [] }
-    } catch (err) {
-      console.error('Error fetching chats:', err);
-      setError(err instanceof Error ? err.message : 'An unknown error occurred.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchChats();
-  }, [fetchChats]);
-
-  // Function to handle deleting a chat (you'll need to implement the API call)
+  // --- MODIFIED: These handlers now just call the prop functions from the parent ---
   const handleDeleteChat = async (chatId: string) => {
     if (!window.confirm('Are you sure you want to delete this chat?')) {
       return;
     }
-    try {
-      const response = await fetch(`/api/chats/${chatId}`, { method: 'DELETE' });
-      if (!response.ok) {
-        throw new Error('Failed to delete chat');
-      }
-      // Call the callback before updating local state
-      onChatDeleted(chatId); 
-      
-      // Refresh chat list after deletion
-      setChats(prevChats => prevChats.filter(chat => chat.chat_id !== chatId));
-      // If the deleted chat was the current one, inform parent to reset
-      // This logic is now primarily handled by the parent component via onChatDeleted,
-      // but keeping onSelectChat('') ensures immediate UI feedback if needed or if parent doesn't fully manage it.
-      if (currentChatId === chatId) {
-        onSelectChat(''); // Or some indicator for no chat selected
-      }
-    } catch (err) {
-      console.error('Error deleting chat:', err);
-      setError(err instanceof Error ? err.message : 'Failed to delete chat.');
-    }
+    // The parent component will now handle the API call and state update
+    onChatDeleted(chatId);
   };
 
   const handleRenameChat = async (chatId: string) => {
@@ -98,44 +55,26 @@ const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
     const newName = prompt("Enter new chat name:", currentChat?.chat_name || "");
 
     if (newName && newName.trim() !== "" && newName.trim() !== currentChat?.chat_name) {
-      // Optimistically update UI - or wait for API response
-      // For simplicity here, we'll update after successful API call.
-
-      try {
-        // Ensure apiClient is imported, e.g. import * as apiClient from '../../lib/apiClient';
-        const updatedChat = await apiClient.updateChat(chatId, { chat_name: newName.trim() });
-        
-        setChats(prevChats =>
-          prevChats.map(chat =>
-            chat.chat_id === chatId ? { ...chat, chat_name: updatedChat.chat_name } : chat
-          )
-        );
-        setError(null); // Clear any previous errors
-      } catch (err) {
-        console.error('Error renaming chat:', err);
-        const errorMsg = err instanceof Error ? err.message : 'Failed to rename chat.';
-        setError(`Failed to rename: ${errorMsg}`);
-        // Optionally, revert optimistic update here if implemented
-        alert(`Error renaming chat: ${errorMsg}`); // Simple feedback
-      }
+      // The parent component will handle the API call and state update
+      onRenameChat(chatId, newName.trim());
     }
   };
 
+
   return (
     <div className="w-64 h-full p-4 border-r border-neutral-700 bg-neutral-800 text-neutral-100 flex flex-col">
-      {/* Modified: border-neutral-700, bg-neutral-800, text-neutral-100 */}
       <Button 
         onClick={onCreateNewChat} 
-        className="mb-4 w-full bg-blue-600 hover:bg-blue-700 text-white" /* Example button styling, adjust as needed */
+        className="mb-4 w-full bg-blue-600 hover:bg-blue-700 text-white"
       >
-        {/* <PlusCircle className="mr-2 h-4 w-4" /> */}
         New Chat
       </Button>
-      <h2 className="text-lg font-semibold mb-2">Chat History</h2> {/* Should inherit text-neutral-100 */}
-      {isLoading && <p>Loading chats...</p>} {/* Should inherit text-neutral-100 */}
-      {error && <p className="text-red-500">{error}</p>} {/* Error text remains red */}
+      <h2 className="text-lg font-semibold mb-2">Chat History</h2>
+      {isLoading && <p>Loading chats...</p>}
+      {error && <p className="text-red-500">{error}</p>}
       <ScrollArea className="flex-grow">
-        {chats.length === 0 && !isLoading && <p>No chats yet.</p>} {/* Should inherit text-neutral-100 */}
+        {chats.length === 0 && !isLoading && <p>No chats yet.</p>}
+        {/* The rest of the JSX remains the same, rendering from props */}
         {chats.map((chat) => (
           <div
             key={chat.chat_id}

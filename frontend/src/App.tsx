@@ -5,7 +5,7 @@ import { ProcessedEvent } from "@/components/ActivityTimeline";
 import { WelcomeScreen } from "@/components/WelcomeScreen";
 import { ChatMessagesView } from "@/components/ChatMessagesView";
 import { useAuth } from "./context/AuthContext";
-import ChatHistorySidebar from './components/ChatHistorySidebar';
+import ChatHistorySidebar, { Chat } from './components/ChatHistorySidebar';
 import * as apiClient from './lib/apiClient';
 
 // A simple Login Popup component
@@ -40,23 +40,70 @@ export default function App() {
   const [displayedMessages, setDisplayedMessages] = useState<Message[]>([]);
   const [currentStreamChatId, setCurrentStreamChatId] = useState<string | null>(null);
   const [isMessagesLoading, setIsMessagesLoading] = useState(false);
-
-  // --- NEW: State for login popup and pending query ---
+  
   const [isLoginModalVisible, setIsLoginModalVisible] = useState(false);
   const [pendingSubmission, setPendingSubmission] = useState<{
     inputValue: string;
     effort: string;
     model: string;
   } | null>(null);
-  // --- END NEW ---
 
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [isChatListLoading, setIsChatListLoading] = useState(false);
+  const [chatListError, setChatListError] = useState<string | null>(null);
 
-  const handleChatDeleted = (deletedChatId: string) => {
-    if (currentChatId === deletedChatId) {
-      handleSelectChat(null);
+  // --- NEW: Function to fetch the list of chats ---
+  const fetchChats = useCallback(async () => {
+    if (!user) return; // Don't fetch if not logged in
+    setIsChatListLoading(true);
+    setChatListError(null);
+    try {
+      const data = await apiClient.fetchChats(); // Using your apiClient
+      // sort chats by last activity if available, otherwise by name or creation date
+      setChats(data.chats || []);
+    } catch (err) {
+      console.error('Error fetching chats in App.tsx:', err);
+      setChatListError(err instanceof Error ? err.message : 'An unknown error occurred.');
+    } finally {
+      setIsChatListLoading(false);
     }
-    console.log(`App: Chat deleted event received for ${deletedChatId}. Current chat is ${currentChatId}.`);
+  }, [user]); // Re-fetch when user logs in
+
+  // --- NEW: Effect to fetch chats when the component mounts or user changes ---
+  useEffect(() => {
+    fetchChats();
+  }, [fetchChats]);
+
+
+  // --- MODIFIED: This now updates the local state directly ---
+  const handleChatDeleted = async (deletedChatId: string) => {
+    try {
+      await apiClient.deleteChat(deletedChatId);
+      setChats(prevChats => prevChats.filter(chat => chat.chat_id !== deletedChatId));
+      if (currentChatId === deletedChatId) {
+        handleSelectChat(null); // Clears the current chat view
+      }
+    } catch (err) {
+       console.error('Error deleting chat:', err);
+       // Optionally show an error to the user
+    }
   };
+  
+  // --- NEW: Handler for renaming a chat ---
+  const handleRenameChat = async (chatId: string, newName: string) => {
+    try {
+      const updatedChat = await apiClient.updateChat(chatId, { chat_name: newName });
+      setChats(prevChats =>
+        prevChats.map(chat =>
+          chat.chat_id === chatId ? { ...chat, chat_name: updatedChat.chat_name } : chat
+        )
+      );
+    } catch (err) {
+      console.error('Error renaming chat:', err);
+      // Optionally show an error
+    }
+  };
+
 
   const [processedEventsTimeline, setProcessedEventsTimeline] = useState<
     ProcessedEvent[]
@@ -67,6 +114,7 @@ export default function App() {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const hasFinalizeEventOccurredRef = useRef(false);
 
+  // ... (useStream hook and other logic remains the same) ...
   const thread = useStream<{
     messages: Message[];
     initial_search_query_count: number;
@@ -241,19 +289,27 @@ export default function App() {
     }
   };
 
+
+  // --- MODIFIED: handleCreateNewChat now updates the 'chats' state directly ---
   const handleCreateNewChat = async () => {
     if (!user) {
       console.error("Authentication Error: You must be logged in to create a chat.");
       return null;
     }
     try {
+      // Give the new chat a temporary name until the first message
       const newChat = await apiClient.createChat({ chat_name: "New Chat" });
       if (newChat) {
+        // Add the new chat to the top of the list for immediate UI update
+        setChats(prevChats => [newChat, ...prevChats]);
+        
+        // Switch to the new chat
         thread.stop?.();
         setCurrentChatId(newChat.chat_id);
         setDisplayedMessages([]);
         setProcessedEventsTimeline([]);
         setCurrentStreamChatId(null);
+        
         console.log(`Chat created: Switched to new chat: ${newChat.chat_name}`);
         return newChat.chat_id;
       }
@@ -264,8 +320,8 @@ export default function App() {
     }
     return null;
   };
-
-  // --- NEW: Effect to run pending submission after successful login ---
+  
+  // ... (useEffect for post-login submission and other hooks remain the same) ...
   useEffect(() => {
     if (user && !isAuthLoading && pendingSubmission) {
       const executePendingSubmission = async () => {
@@ -314,8 +370,6 @@ export default function App() {
       executePendingSubmission();
     }
   }, [user, isAuthLoading, pendingSubmission, handleCreateNewChat, thread]);
-  // --- END NEW ---
-
 
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -400,14 +454,20 @@ export default function App() {
   return (
     <div className="flex h-screen bg-neutral-800 text-neutral-100 font-sans antialiased">
       {user && (
+        // --- MODIFIED: Pass the new state and handlers down to the sidebar ---
         <ChatHistorySidebar
+          chats={chats}
+          isLoading={isChatListLoading}
+          error={chatListError}
           currentChatId={currentChatId}
           onSelectChat={handleSelectChat}
           onCreateNewChat={handleCreateNewChat}
           onChatDeleted={handleChatDeleted}
+          onRenameChat={handleRenameChat}
         />
       )}
       <main className={`h-full flex flex-col flex-grow ${user ? 'w-[calc(100%-16rem)]' : 'w-full max-w-4xl mx-auto'}`}>
+        {/* ... (The rest of the JSX remains the same) ... */}
         <div className="p-4 border-b border-neutral-700 flex justify-between items-center">
           <a href="https://search.akjo.eu">
             <h1 className="text-xl font-semibold">Deep Research Agent</h1>
@@ -446,7 +506,6 @@ export default function App() {
           </div>
         </div>
         <div className="flex-grow overflow-y-auto">
-          {/* --- MODIFIED: Main content rendering logic --- */}
           {!user ? (
             <WelcomeScreen
               handleSubmit={(inputValue, effort, model) => {
@@ -454,11 +513,10 @@ export default function App() {
                 setPendingSubmission({ inputValue, effort, model });
                 setIsLoginModalVisible(true);
               }}
-              isLoading={false} // Never show loading state when logged out
-              onCancel={() => {}} // No-op for cancel when logged out
+              isLoading={false}
+              onCancel={() => {}}
             />
           ) : currentChatId ? (
-            // User is logged in and has a chat selected
             displayedMessages.length === 0 && !(thread.isLoading && currentChatId === currentStreamChatId) ? (
               <WelcomeScreen
                 handleSubmit={handleSubmit}
@@ -478,13 +536,11 @@ export default function App() {
               />
             )
           ) : (
-            // User is logged in but has not selected/started a chat
             <WelcomeScreen
               handleSubmit={async (inputValue, effort, model) => {
                 if (!inputValue.trim()) return;
                 const newChatId = await handleCreateNewChat();
                 if (newChatId) {
-                  // Manually trigger the submission logic for the new chat
                   handleSubmit(inputValue, effort, model);
                 }
               }}
@@ -492,24 +548,21 @@ export default function App() {
               onCancel={handleCancel}
             />
           )}
-           {/* --- END MODIFIED --- */}
         </div>
         <footer className="p-2 text-center text-xs text-neutral-500 border-t border-neutral-700">
           Built with ❤️ by Akshay Joshi using LangChain & LangGraph.
         </footer>
       </main>
       
-      {/* --- NEW: Conditionally render the login popup --- */}
       {isLoginModalVisible && (
         <LoginPopup
             onLogin={() => {
-                login(); // This will trigger the auth flow
-                setIsLoginModalVisible(false); // Hide the modal immediately
+                login();
+                setIsLoginModalVisible(false);
             }}
             onClose={() => setIsLoginModalVisible(false)}
         />
       )}
-       {/* --- END NEW --- */}
     </div>
   );
 }
