@@ -2,6 +2,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { MoreVertical } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import * as apiClient from '../lib/apiClient';
 // You might need icons for actions like delete, rename
 // import { Trash2, Edit3, PlusCircle } from 'lucide-react';
@@ -17,14 +24,15 @@ interface ChatHistorySidebarProps {
   currentChatId: string | null;
   onSelectChat: (chatId: string) => void;
   onCreateNewChat: () => void; // Callback to signal App.tsx to handle new chat creation
+  onChatDeleted: (deletedChatId: string) => void; // Callback when a chat is deleted
   // onRenameChat: (chatId: string, newName: string) => void; // Future enhancement
-  // onDeleteChat: (chatId: string) => void; // Future enhancement
 }
 
 const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
   currentChatId,
   onSelectChat,
   onCreateNewChat,
+  onChatDeleted,
 }) => {
   const [chats, setChats] = useState<Chat[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -68,9 +76,14 @@ const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
       if (!response.ok) {
         throw new Error('Failed to delete chat');
       }
+      // Call the callback before updating local state
+      onChatDeleted(chatId); 
+      
       // Refresh chat list after deletion
       setChats(prevChats => prevChats.filter(chat => chat.chat_id !== chatId));
       // If the deleted chat was the current one, inform parent to reset
+      // This logic is now primarily handled by the parent component via onChatDeleted,
+      // but keeping onSelectChat('') ensures immediate UI feedback if needed or if parent doesn't fully manage it.
       if (currentChatId === chatId) {
         onSelectChat(''); // Or some indicator for no chat selected
       }
@@ -126,27 +139,43 @@ const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
         {chats.map((chat) => (
           <div
             key={chat.chat_id}
-            className={`p-2 my-1 rounded-md cursor-pointer hover:bg-neutral-700 ${
-    currentChatId === chat.chat_id ? 'bg-neutral-600 font-semibold' : ''
-}`}
+            className={`flex items-center justify-between p-2 my-1 rounded-md hover:bg-neutral-700 ${
+              currentChatId === chat.chat_id ? 'bg-neutral-600 font-semibold' : ''
+            }`}
           >
-            <div onClick={() => onSelectChat(chat.chat_id)} className="flex-grow truncate">
-              {chat.chat_name} {/* Should inherit text-neutral-100 */}
+            <div 
+              onClick={() => onSelectChat(chat.chat_id)} 
+              className="flex-grow truncate cursor-pointer"
+              title={chat.chat_name}
+            >
+              {chat.chat_name}
             </div>
-            <div className="flex items-center mt-1">
-              <button
-                onClick={() => handleRenameChat(chat.chat_id)}
-                className="text-xs text-blue-400 hover:underline mr-2" /* Modified: text-blue-400 */
-              >
-                Rename
-              </button>
-              <button
-                onClick={() => handleDeleteChat(chat.chat_id)}
-                className="text-xs text-red-400 hover:underline" /* Modified: text-red-400 */
-              >
-                Delete
-              </button>
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 p-1 text-neutral-400 hover:text-neutral-100 hover:bg-neutral-700"
+                >
+                  <MoreVertical size={18} />
+                  <span className="sr-only">Chat options</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-neutral-800 border-neutral-700 text-neutral-100">
+                <DropdownMenuItem 
+                  onClick={() => handleRenameChat(chat.chat_id)}
+                  className="hover:bg-neutral-700 cursor-pointer"
+                >
+                  Rename
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => handleDeleteChat(chat.chat_id)}
+                  className="hover:bg-neutral-700 cursor-pointer text-red-400 hover:text-red-300"
+                >
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         ))}
       </ScrollArea>
